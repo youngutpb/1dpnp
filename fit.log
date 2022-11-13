@@ -1,0 +1,38 @@
+
+
+*******************************************************************************
+Wed Oct 26 20:32:38 2022
+
+
+FIT:    data read from "-"
+        format = z
+        #datapoints = 1001
+        residuals are weighted equally (unit weight)
+
+function used for fitting: y(x)
+	y(x) = a + b*cos(x + c)
+fitted parameters initialized with current variable values
+
+iter      chisq       delta/lim  lambda   a             b             c            
+   0 2.7074922978e+03   0.00e+00  8.16e-01    1.000000e+00   1.000000e+00   1.000000e+00
+   6 1.0765656755e+01  -2.79e-05  8.16e-07    3.916443e-03  -9.923402e-01   1.562327e+00
+
+After 6 iterations the fit converged.
+final sum of squares of residuals : 10.7657
+rel. change during last iteration : -2.78854e-14
+
+degrees of freedom    (FIT_NDF)                        : 998
+rms of residuals      (FIT_STDFIT) = sqrt(WSSR/ndf)    : 0.103862
+variance of residuals (reduced chisquare) = WSSR/ndf   : 0.0107872
+
+Final set of parameters            Asymptotic Standard Error
+=======================            ==========================
+a               = 0.00391644       +/- 0.003292     (84.06%)
+b               = -0.99234         +/- 0.004696     (0.4732%)
+c               = 1.56233          +/- 0.004647     (0.2974%)
+
+correlation matrix of the fit parameters:
+                a      b      c      
+a               1.000 
+b               0.040  1.000 
+c              -0.064  0.038  1.000 
