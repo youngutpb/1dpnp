@@ -53,7 +53,7 @@ cn = 5.0E13
 #cn = 0.0
 
 phi_left = 0.0
-phi_right = 0.0
+phi_right = 2.0
 temperature = 300 # temperature in Kelvin
 
 
@@ -72,7 +72,7 @@ x = np.linspace(0,Lx, Nx+1)
 dt_min = (dx**2)/(2*max(Danion,Dcation))
 
 ##  Typical Diffusion Time Scales  https://www.physiologyweb.com/calculators/diffusion_time_calculator.html
-Trun = 60.0 # length of "experiment" in hours
+Trun = 90.0 # length of "experiment" in hours
 dt = 3600/20
 print("dt=", dt)
 if dt > dt_min : sys.exit("dt is too large")   
@@ -234,11 +234,11 @@ for it in range(1, Nt+1) :
 
     for ix in np.arange(0, Nx+1) :
         if (ix ==0):
-            Ex[it,0] = (-3*phi[it,0]+4*phi[it,1]-phi[it,2])/(2.0*dx)
+            Ex[it,0] = -1.0*(-3*phi[it,0]+4*phi[it,1]-phi[it,2])/(2.0*dx)
         elif (ix == Nx):
-            Ex[it,Nx]= (3*phi[it,Nx] - 4*phi[it,Nx-1] + phi[it,Nx-2])/(2.0*dx)
+            Ex[it,Nx]= -1.0*(3*phi[it,Nx] - 4*phi[it,Nx-1] + phi[it,Nx-2])/(2.0*dx)
         else :
-            Ex[it,ix] = (phi[it,ix+1]-phi[it,ix-1])/(2.0*dx)
+            Ex[it,ix] = -1.0*(phi[it,ix+1]-phi[it,ix-1])/(2.0*dx)
             
     for ix in np.arange(0, Nx+1) :
         m_anion[it] = cn_anion[it,ix]*dx/(cn*Lx) + m_anion[it]
