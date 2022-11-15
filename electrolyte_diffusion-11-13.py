@@ -18,6 +18,8 @@ from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 #############  Physical Constants ################################
 q_ele = 1.602E-19
 epo = 8.854E-12
+kappa = 78.4 # dielectric constant of water
+ep = epo*kappa
 
 # https://www.aqion.de/site/diffusion-coefficients
 # https://www.physiologyweb.com/calculators/diffusion_time_calculator.html
@@ -49,11 +51,11 @@ Nx = 100
 
 
 
-cn = 5.0E13
+cn = 5.0E14
 #cn = 0.0
 
-phi_left = 0.0
-phi_right = 2.0
+phi_left = 5.0
+phi_right = 0.0
 temperature = 300 # temperature in Kelvin
 
 
@@ -72,7 +74,7 @@ x = np.linspace(0,Lx, Nx+1)
 dt_min = (dx**2)/(2*max(Danion,Dcation))
 
 ##  Typical Diffusion Time Scales  https://www.physiologyweb.com/calculators/diffusion_time_calculator.html
-Trun = 90.0 # length of "experiment" in hours
+Trun = 200.0 # length of "experiment" in hours
 dt = 3600/20
 print("dt=", dt)
 if dt > dt_min : sys.exit("dt is too large")   
@@ -80,7 +82,7 @@ if dt > dt_min : sys.exit("dt is too large")
 
 Nt = int(Trun*3600/dt)
 print("Nt =", Nt)
-Nplot = 200
+Nplot = 400
 Ntplot = Nt/Nplot
 print("Ntplot = ", Ntplot)
 
@@ -104,7 +106,7 @@ matrix = np.zeros((Nx+1, Nx+1))
 inverse = np.zeros((Nx+1, Nx+1))
 
 rho = np.zeros((Nx+1))
-rho_epo = np.zeros(Nx+1)
+rho_ep = np.zeros(Nx+1)
 
 phi = np.zeros(( Nt+1,Nx+1))
 Ex = np.zeros((Nt+1,Nx+1))
@@ -145,27 +147,27 @@ for ix in np.arange(0, Nx+1):
     m_cation[0] = cn_cation[0,ix]*dx/(cn*Lx) + m_cation[0]
     
     
-    rho[ix] = (Z_anion*q_ele*cn_anion[0,ix]+Z_cation*q_ele*cn_cation[0,ix])
+    rho[ix] = -(Z_anion*q_ele*cn_anion[0,ix]+Z_cation*q_ele*cn_cation[0,ix])
     if (ix ==0):
-        rho_epo[0] = ((Z_anion*q_ele*cn_anion[0,ix]+Z_cation*q_ele*cn_cation[0,ix])/epo)*dx**2 - phi_left
+        rho_ep[0] = -((Z_anion*q_ele*cn_anion[0,ix]+Z_cation*q_ele*cn_cation[0,ix])/ep)*dx**2 - phi_left
     elif (ix==Nx):
-        rho_epo[Nx] = ((Z_anion*q_ele*cn_anion[0,ix]+Z_cation*q_ele*cn_cation[0,ix]))/epo*dx**2 - phi_right  
+        rho_ep[Nx] = -((Z_anion*q_ele*cn_anion[0,ix]+Z_cation*q_ele*cn_cation[0,ix]))/ep*dx**2 - phi_right  
     else:
-        rho_epo[ix] = rho[ix]/epo*dx**2
+        rho_ep[ix] = -rho[ix]/ep*dx**2
        
-#################   Calculates  initial potential using rho/epo & inverse poission matrix ####        
+#################   Calculates  initial potential using rho/ep & inverse poission matrix ####        
 
 
 
-phi[0,:] = inverse @ rho_epo
+phi[0,:] = inverse @ rho_ep
 
 for ix in np.arange(0, Nx+1):
     if (ix == 0):
-        Ex[0, 0] = (-3*phi[0, 0]+4*phi[0, 1]-phi[0, 2])/(2.0*dx)
+        Ex[0, 0] = 1.0*(-3*phi[0, 0]+4*phi[0, 1]-phi[0, 2])/(2.0*dx)
     elif (ix == Nx):
-        Ex[0, Nx] = (3*phi[0, Nx] - 4*phi[0,Nx-1] + phi[0,Nx-2])/(2.0*dx)
+        Ex[0, Nx] = 1.0*(3*phi[0, Nx] - 4*phi[0,Nx-1] + phi[0,Nx-2])/(2.0*dx)
     else:
-        Ex[0, ix] = (phi[0, ix+1]-phi[0, ix-1])/(2.0*dx)
+        Ex[0, ix] = 1.0*(phi[0, ix+1]-phi[0, ix-1])/(2.0*dx)
 
 
 #################### Main Loop  ################################################
@@ -176,12 +178,12 @@ for it in range(1, Nt+1) :
         if (ix == 1):
             #  Note:  Can use central difference since we have x_0, x_1, and x_2
             #          Since cn(x_0) = cn(x_1) [Boundary condition] => formula below
-            #cn_anion[it,ix] = cn_anion[it-1,ix] + (Danion*(cn_anion[it-1,ix+1]-cn_anion[it-1,ix])/dx**2)*dt #+ Lo_anion*cn_anion[it-1,ix]*rho_epo[ix]/dx**2*dt
-            #cn_cation[it,ix] = cn_cation[it-1,ix] + (Dcation*(cn_cation[it-1,ix+1]-cn_cation[it-1,ix])/dx**2)*dt #+ Lo_cation*cn_cation[it-1,ix]*rho_epo[ix]/dx**2*dt
+            #cn_anion[it,ix] = cn_anion[it-1,ix] + (Danion*(cn_anion[it-1,ix+1]-cn_anion[it-1,ix])/dx**2)*dt #+ Lo_anion*cn_anion[it-1,ix]*rho_ep[ix]/dx**2*dt
+            #cn_cation[it,ix] = cn_cation[it-1,ix] + (Dcation*(cn_cation[it-1,ix+1]-cn_cation[it-1,ix])/dx**2)*dt #+ Lo_cation*cn_cation[it-1,ix]*rho_ep[ix]/dx**2*dt
             Diffusion_anion =  (Danion*(cn_anion[it-1,ix+1]-cn_anion[it-1,ix])/dx**2)   
             Diffusion_cation =  (Dcation*(cn_cation[it-1,ix+1]-cn_cation[it-1,ix])/dx**2) 
-            sigma_dEx_anion = Lo_anion*cn_anion[it-1,ix]*rho[ix]/epo
-            sigma_dEx_cation = Lo_cation*cn_cation[it-1,ix]*rho[ix]/epo
+            sigma_dEx_anion = Lo_anion*cn_anion[it-1,ix]*rho[ix]/ep
+            sigma_dEx_cation = Lo_cation*cn_cation[it-1,ix]*rho[ix]/ep
 
             cn_anion[it,ix] = cn_anion[it-1,ix] + Diffusion_anion*dt + sigma_dEx_anion *dt
             cn_cation[it,ix] = cn_cation[it-1,ix] + Diffusion_cation*dt + sigma_dEx_cation *dt
@@ -192,13 +194,13 @@ for it in range(1, Nt+1) :
         elif (ix == Nx-1) :
             #  Note:  Can use central difference since we have x_N-2, x_N-1, and x_N
             #          Since cn(x_N-1) = cn(x_N) [Boundary condition] => formula below
-            #cn_anion[it,ix] = cn_anion[it-1,ix] + (Danion*(cn_anion[it-1,ix-1]-cn_anion[it-1,ix])/dx**2)*dt# + Lo_anion*cn_anion[it-1,ix]*rho_epo[ix]/dx**2*dt
-            #cn_cation[it,ix] = cn_cation[it-1,ix] + (Dcation*(cn_cation[it-1,ix-1]-cn_cation[it-1,ix])/dx**2)*dt# + Lo_anion*cn_anion[it-1,ix]*rho_epo[ix]/dx**2*dt
+            #cn_anion[it,ix] = cn_anion[it-1,ix] + (Danion*(cn_anion[it-1,ix-1]-cn_anion[it-1,ix])/dx**2)*dt# + Lo_anion*cn_anion[it-1,ix]*rho_ep[ix]/dx**2*dt
+            #cn_cation[it,ix] = cn_cation[it-1,ix] + (Dcation*(cn_cation[it-1,ix-1]-cn_cation[it-1,ix])/dx**2)*dt# + Lo_anion*cn_anion[it-1,ix]*rho_ep[ix]/dx**2*dt
 
             Diffusion_anion = (Danion*(cn_anion[it-1,ix-1]-cn_anion[it-1,ix])/dx**2)
             Diffusion_cation = (Dcation*(cn_cation[it-1,ix-1]-cn_cation[it-1,ix])/dx**2)
-            sigma_dEx_anion = Lo_anion*cn_anion[it-1,ix]*rho[ix]/epo
-            sigma_dEx_cation = Lo_cation*cn_cation[it-1,ix]*rho[ix]/epo
+            sigma_dEx_anion = Lo_anion*cn_anion[it-1,ix]*rho[ix]/ep
+            sigma_dEx_cation = Lo_cation*cn_cation[it-1,ix]*rho[ix]/ep
 
             cn_anion[it,ix] = cn_anion[it-1,ix] + Diffusion_anion*dt + sigma_dEx_anion*dt
             cn_cation[it,ix] = cn_cation[it-1,ix] + Diffusion_cation*dt + sigma_dEx_cation*dt
@@ -207,12 +209,12 @@ for it in range(1, Nt+1) :
             cn_cation[it,Nx] = cn_cation[it,Nx-1]
             #print(cn_anion[it,ix], cn_cation[it,ix])
         else :
-            #cn_anion[it,ix] = cn_anion[it-1,ix] + (Danion*(cn_anion[it-1,ix+1]-2*cn_anion[it-1,ix]+cn_anion[it-1,ix-1])/dx**2)*dt # + Lo_anion*cn_anion[it-1,ix]*rho_epo[ix]/dx**2*dt
-            #cn_cation[it,ix] = cn_cation[it-1,ix] + (Dcation*(cn_cation[it-1,ix+1]-2*cn_cation[it-1,ix]+cn_cation[it-1,ix-1])/dx**2)*dt #+ Lo_cation*cn_cation[it-1,ix]*rho_epo[ix]/dx**2*dt
+            #cn_anion[it,ix] = cn_anion[it-1,ix] + (Danion*(cn_anion[it-1,ix+1]-2*cn_anion[it-1,ix]+cn_anion[it-1,ix-1])/dx**2)*dt # + Lo_anion*cn_anion[it-1,ix]*rho_ep[ix]/dx**2*dt
+            #cn_cation[it,ix] = cn_cation[it-1,ix] + (Dcation*(cn_cation[it-1,ix+1]-2*cn_cation[it-1,ix]+cn_cation[it-1,ix-1])/dx**2)*dt #+ Lo_cation*cn_cation[it-1,ix]*rho_ep[ix]/dx**2*dt
             Diffusion_anion = (Danion*(cn_anion[it-1,ix+1]-2*cn_anion[it-1,ix]+cn_anion[it-1,ix-1])/dx**2)
             Diffusion_cation = (Dcation*(cn_cation[it-1,ix+1]-2*cn_cation[it-1,ix]+cn_cation[it-1,ix-1])/dx**2)
-            sigma_dEx_anion = Lo_anion*cn_anion[it-1,ix]*rho[ix]/epo
-            sigma_dEx_cation = Lo_cation*cn_cation[it-1,ix]*rho[ix]/epo
+            sigma_dEx_anion = Lo_anion*cn_anion[it-1,ix]*rho[ix]/ep
+            sigma_dEx_cation = Lo_cation*cn_cation[it-1,ix]*rho[ix]/ep
         
             
             
@@ -223,22 +225,22 @@ for it in range(1, Nt+1) :
 
         rho[ix] = (Z_anion*q_ele*cn_anion[it,ix]+Z_cation*q_ele*cn_cation[it,ix])
         if (ix ==0):
-            rho_epo[0] = ((Z_anion*q_ele*cn_anion[it,ix]+Z_cation*q_ele*cn_cation[it,ix])/epo)*dx**2 - phi_left
+            rho_ep[0] = -((Z_anion*q_ele*cn_anion[it,ix]+Z_cation*q_ele*cn_cation[it,ix])/ep)*dx**2 - phi_left
         elif (ix==Nx):
-            rho_epo[Nx] = ((Z_anion*q_ele*cn_anion[it,ix]+Z_cation*q_ele*cn_cation[it,ix]))/epo*dx**2 - phi_right  
+            rho_ep[Nx] = -((Z_anion*q_ele*cn_anion[it,ix]+Z_cation*q_ele*cn_cation[it,ix]))/ep*dx**2 - phi_right  
         else:
-            rho_epo[ix] = rho[ix]/epo*dx**2
+            rho_ep[ix] = -rho[ix]/ep*dx**2
        
-    phi[it,:] = inverse @ rho_epo
+    phi[it,:] = inverse @ rho_ep
     
 
     for ix in np.arange(0, Nx+1) :
         if (ix ==0):
-            Ex[it,0] = -1.0*(-3*phi[it,0]+4*phi[it,1]-phi[it,2])/(2.0*dx)
+            Ex[it,0] = 1.0*(-3*phi[it,0]+4*phi[it,1]-phi[it,2])/(2.0*dx)
         elif (ix == Nx):
-            Ex[it,Nx]= -1.0*(3*phi[it,Nx] - 4*phi[it,Nx-1] + phi[it,Nx-2])/(2.0*dx)
+            Ex[it,Nx]= 1.0*(3*phi[it,Nx] - 4*phi[it,Nx-1] + phi[it,Nx-2])/(2.0*dx)
         else :
-            Ex[it,ix] = -1.0*(phi[it,ix+1]-phi[it,ix-1])/(2.0*dx)
+            Ex[it,ix] = 1.0*(phi[it,ix+1]-phi[it,ix-1])/(2.0*dx)
             
     for ix in np.arange(0, Nx+1) :
         m_anion[it] = cn_anion[it,ix]*dx/(cn*Lx) + m_anion[it]
@@ -334,21 +336,21 @@ phi_analytic = np.zeros((Nx+1))
 for i in np.arange(0, Nx+1):
     #x[i] = i*dx
     ########### Solution for cn = constant, phi_left = 00., phi_right = 0.0
-    # C_analytic = phi_right/Lx - 0.5*rho[i]*Lx/epo - phi_left/Lx
-    # phi_analytic[i] = (0.5*rho[i]*x[i]**2)/epo + C_analytic*x[i] + phi_left
+    # C_analytic = phi_right/Lx - 0.5*rho[i]*Lx/ep - phi_left/Lx
+    # phi_analytic[i] = (0.5*rho[i]*x[i]**2)/ep + C_analytic*x[i] + phi_left
     
     ########### Solution for cn = constant, phi_left = 0.0, phi_right = 1.2 V
-    #phi_analytic=((Z_cation+Z_anion)*cn*q_ele*x[i]**2)/(2*epo)-(((Lx**2*Z_cation+Lx**2*Z_anion)*cn*q_ele-2*epo*phi_right+2*epo*phi_left)*x)/(2*Lx*epo)+phi_left
+    #phi_analytic=((Z_cation+Z_anion)*cn*q_ele*x[i]**2)/(2*ep)-(((Lx**2*Z_cation+Lx**2*Z_anion)*cn*q_ele-2*ep*phi_right+2*ep*phi_left)*x)/(2*Lx*ep)+phi_left
 
     
     ########### Solution for cn_anion = cn*x/Lx, cn_cation = cn*(1-x/Lx)
-    #Wphi_analytic[i] = -((Z_cation-Z_anion)*cn*q_ele*x[i]**3-3*Lx*Z_cation*cn*q_ele*x[i]**2)/(6*Lx*epo) - (((2*Lx**2*Z_cation+Lx**2*Z_anion)*cn*q_ele-6*epo*phi_right+6*epo*phi_left)*x[i])/(6*Lx*epo) + phi_left
+    #Wphi_analytic[i] = -((Z_cation-Z_anion)*cn*q_ele*x[i]**3-3*Lx*Z_cation*cn*q_ele*x[i]**2)/(6*Lx*ep) - (((2*Lx**2*Z_cation+Lx**2*Z_anion)*cn*q_ele-6*ep*phi_right+6*ep*phi_left)*x[i])/(6*Lx*ep) + phi_left
     ############# Solution for cn_anion = cn_cation = cn(Lx-x)   ######################
-    #phi_analytic[i] = -(Z_anion*cn*q_ele*x[i]**4+(2*Z_cation-2*Lx*Z_anion)*cn*q_ele*x[i]**3-6*Lx*Z_cation*cn*q_ele*x[i]**2)/(12*epo)- (((4*Lx**3*Z_cation+Lx**4*Z_anion)*cn*q_ele-12*epo*phi_right+12*epo*phi_left)*x[i])/(12*Lx*epo) - phi_left
+    #phi_analytic[i] = -(Z_anion*cn*q_ele*x[i]**4+(2*Z_cation-2*Lx*Z_anion)*cn*q_ele*x[i]**3-6*Lx*Z_cation*cn*q_ele*x[i]**2)/(12*ep)- (((4*Lx**3*Z_cation+Lx**4*Z_anion)*cn*q_ele-12*ep*phi_right+12*ep*phi_left)*x[i])/(12*Lx*ep) - phi_left
     
     
     #######  Solution for cn(x) = cn*x*(Lx-x)/Lx^2
-    phi_analytic[i] = ((Z_cation+Z_anion)*cn*q_ele*x[i]**4+(-2*Lx*Z_cation-2*Lx*Z_anion)*cn*q_ele*x[i]**3)/(12*Lx**2*epo) - (((Lx**2*Z_cation+Lx**2*Z_anion)*cn*q_ele-12*epo*phi_right+12*epo*phi_left)*x[i])/(12*Lx*epo)+phi_left
+    phi_analytic[i] = ((Z_cation+Z_anion)*cn*q_ele*x[i]**4+(-2*Lx*Z_cation-2*Lx*Z_anion)*cn*q_ele*x[i]**3)/(12*Lx**2*ep) - (((Lx**2*Z_cation+Lx**2*Z_anion)*cn*q_ele-12*ep*phi_right+12*ep*phi_left)*x[i])/(12*Lx*ep)+phi_left
 
 
 
@@ -361,8 +363,9 @@ for i in np.arange(0, Nx+1):
 
 it = 0
 iplot = 0
-phi_max = 2.0*np.trunc(0.5*np.ceil(np.amax(phi)))
-phi_min = np.floor(np.amin(phi))
+phi_max = np.trunc(np.ceil(np.amax(phi)))*1.1
+phi_min = np.floor(np.amin(phi))*1.1
+print(phi_max, phi_min)
 iframe = 1
 
 while(it<=Nt):
@@ -378,7 +381,7 @@ while(it<=Nt):
         ax = plt.subplot(111)
         #phi_plate.set_figwidth(3)
         plt.xlim(0, Lx)
-        plt.ylim(phi_min, 0.1)
+        plt.ylim(phi_min, phi_max)
         plt.plot(x,phi[it,:], label = "numerical")
         plt.plot(x,phi_analytic, label = "analytic @ t=0.0 s", linestyle = '--')
         #plt.legend()
@@ -431,16 +434,16 @@ Ex_analytic = np.zeros((Nx+1))
 for i in np.arange(0, Nx+1):
     #x[i] = i*dx
     ########### Solution for cn = constant
-    #Ex_analytic[i] = ((Z_cation+Z_anion)*cn*q_ele*x[i])/epo - ((Lx**2*Z_cation+Lx**2*Z_anion)*cn*q_ele-2*epo*phi_right+2*epo*phi_left)/(2*Lx*epo)
+    #Ex_analytic[i] = ((Z_cation+Z_anion)*cn*q_ele*x[i])/ep - ((Lx**2*Z_cation+Lx**2*Z_anion)*cn*q_ele-2*ep*phi_right+2*ep*phi_left)/(2*Lx*ep)
     
     
     ########### Solution for cn_anion = cn*x/Lx, cn_cation = cn*(1-x/Lx)
-    #Wphi_analytic[i] = -((Z_cation-Z_anion)*cn*q_ele*x[i]**3-3*Lx*Z_cation*cn*q_ele*x[i]**2)/(6*Lx*epo) - (((2*Lx**2*Z_cation+Lx**2*Z_anion)*cn*q_ele-6*epo*phi_right+6*epo*phi_left)*x[i])/(6*Lx*epo) + phi_left
+    #Wphi_analytic[i] = -((Z_cation-Z_anion)*cn*q_ele*x[i]**3-3*Lx*Z_cation*cn*q_ele*x[i]**2)/(6*Lx*ep) - (((2*Lx**2*Z_cation+Lx**2*Z_anion)*cn*q_ele-6*ep*phi_right+6*ep*phi_left)*x[i])/(6*Lx*ep) + phi_left
     ############# Solution for cn_anion = cn_cation = cn(Lx-x)   ######################
-    #phi_analytic[i] = -(Z_anion*cn*q_ele*x[i]**4+(2*Z_cation-2*Lx*Z_anion)*cn*q_ele*x[i]**3-6*Lx*Z_cation*cn*q_ele*x[i]**2)/(12*epo)- (((4*Lx**3*Z_cation+Lx**4*Z_anion)*cn*q_ele-12*epo*phi_right+12*epo*phi_left)*x[i])/(12*Lx*epo) - phi_left
+    #phi_analytic[i] = -(Z_anion*cn*q_ele*x[i]**4+(2*Z_cation-2*Lx*Z_anion)*cn*q_ele*x[i]**3-6*Lx*Z_cation*cn*q_ele*x[i]**2)/(12*ep)- (((4*Lx**3*Z_cation+Lx**4*Z_anion)*cn*q_ele-12*ep*phi_right+12*ep*phi_left)*x[i])/(12*Lx*ep) - phi_left
     
     ########### Solution for cn(x) = cn*x*(Lx-x)/Lx^2
-    Ex_analytic[i] = (4*(Z_cation+Z_anion)*cn*q_ele*x[i]**3+3*(-2*Lx*Z_cation-2*Lx*Z_anion)*cn*q_ele*x[i]**2)/(12*Lx**2*epo) - ((Lx**2*Z_cation+Lx**2*Z_anion)*cn*q_ele-12*epo*phi_right+12*epo*phi_left)/(12*Lx*epo)
+    Ex_analytic[i] = (4*(Z_cation+Z_anion)*cn*q_ele*x[i]**3+3*(-2*Lx*Z_cation-2*Lx*Z_anion)*cn*q_ele*x[i]**2)/(12*Lx**2*ep) - ((Lx**2*Z_cation+Lx**2*Z_anion)*cn*q_ele-12*ep*phi_right+12*ep*phi_left)/(12*Lx*ep)
     
 #print(Ex_analytic)
 
@@ -549,10 +552,10 @@ while(it<=Nt):
 # ax.set_xlim(0, L)
 # plt.quiver(znum, rnum, z_vector, r_vector, color='saddlebrown')
 # plt.quiver(znum, rnum, z_vector, r_vector, color='saddlebrown', pivot='middle')
-        num_skip = 4
-        find_size = np.size(Ex[it,::4])
+        num_skip = 5
+        find_size = np.size(Ex[it,::num_skip])
         vecEx_plot = np.array((find_size))
-        vecEx_plot = Ex[it,::4]/Ex_norm
+        vecEx_plot = Ex[it,::num_skip]/Ex_norm
 
 
         num_vecs = np.size(vecEx_plot)
